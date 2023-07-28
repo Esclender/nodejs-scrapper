@@ -1,56 +1,57 @@
 const { chromium } = require('playwright')
+const { getOfferOBj } = require('./utilities/getOfferObj.js')
+const Db = require('./db')
 
 const url = 'https://latamtravel-peru.despegar.com.pe/?utm_source=latamairlines'
 
 const infoArr = [
   {
     tag: '.offer-card-pricebox-price-amount',
-    attr: 'Price'
+    attr: 'price'
   },
   {
     tag: '.offer-card-title',
-    attr: 'Title'
+    attr: 'title'
   },
   {
     tag: '.offer-card-image-main',
-    attr: 'Image',
-    src: async (offer) => {
-      return await offer.evaluate(node => node.src)
+    attr: 'image',
+    src: async (father, tag) => {
+      return await father.locator(tag).evaluate(node => node.src)
     }
+  },
+  {
+    tag: '.offer-card-main-driver > .driver-text',
+    attr: 'avaible'
+  },
+  {
+    tag: '.rating-text',
+    attr: 'rating'
+  },
+  {
+    tag: '.luggage-item-title',
+    attr: 'benefits',
+    array: true
   }
 ]
 
-const getOfferOBj = async (page, infos) => {
-  const obj = []
+const connectDb = async (data) => {
+  const database = new Db()
 
-  for (const info of infos) {
-    const offer = await page.locator(info.tag).all()
+  const { message } = await database.inserter(data)
+  database.close()
 
-    for (let i = 0; i < offer.length; i++) {
-      if (!info.src) {
-        obj[i] = {
-          ...obj[i],
-          [info.attr]: await offer[i].textContent()
-        }
-      } else {
-        obj[i] = {
-          ...obj[i],
-          [info.attr]: await info.src(offer[i])
-        }
-      }
-    }
-  }
-
-  return obj
-}
+  return message
+};
 
 (async () => {
   const browser = await chromium.launch()
   const page = await browser.newPage()
   await page.goto(url)
-  console.log(await getOfferOBj(page, infoArr))
+  const offere = await page.locator('.offer-card-container').all()
+  const data = await getOfferOBj(page, infoArr, offere)
+
+  console.log(await connectDb(data))
 
   await browser.close()
 })()
-
-/* console.log(await (await offer[i].evaluate(node => node.src)).jsonValue()) */
